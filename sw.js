@@ -8,11 +8,20 @@ const urlsToCache = [
   'https://unpkg.com/@babel/standalone/babel.min.js'
 ];
 
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open('vocab-store').then((cache) => cache.addAll([
+      './',
+      './index.html',
+      './manifest.json',
+      './icon-192.png',
+      './icon-512.png'
+    ]))
+  );
 });
 
-self.addEventListener('fetch', (event) => {
-    // 必須有這個 fetch 監聽器，瀏覽器才會給予 App 資格
-    event.respondWith(fetch(event.request));
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((response) => response || fetch(e.request))
+  );
 });
