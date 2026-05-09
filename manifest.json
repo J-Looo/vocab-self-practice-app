@@ -1,21 +1,24 @@
 {
-  "name": "單字挑戰挑戰站",
+  "id": "/vocab-app/",
+  "name": "英語單字練習工具",
   "short_name": "單字練習",
-  "description": "專業英文單字練習教具",
-  "start_url": "index.html",
+  "start_url": "./index.html",
+  "scope": "/vocab-app/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1a1a1a",
+  "background_color": "#0F172A",
+  "theme_color": "#00F2FF",
   "icons": [
-  {
-    "src": "icon-192.png", 
-    "sizes": "192x192",
-    "type": "image/png",
-    "purpose": "any maskable"
-  },
-  {
-    "src": "icon-512.png",
-    "sizes": "512x512",
-    "type": "image/png"
-  }
-]
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
