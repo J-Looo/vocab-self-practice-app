@@ -8,14 +8,11 @@ const urlsToCache = [
   'https://unpkg.com/@babel/standalone/babel.min.js'
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-  );
+self.addEventListener('install', (event) => {
+    self.skipWaiting();
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+self.addEventListener('fetch', (event) => {
+    // 必須有這個 fetch 監聽器，瀏覽器才會給予 App 資格
+    event.respondWith(fetch(event.request));
 });
