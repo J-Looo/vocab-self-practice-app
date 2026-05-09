@@ -1,21 +1,30 @@
-// sw.js 內容
-const CACHE_NAME = 'vocab-app-v1';
+// sw.js 安全相容版
+const CACHE_NAME = 'vocab-app-v2';
 
-self.addEventListener('install', (event) => {
-    // 安裝時不強制等待，直接進入 active 狀態
-    self.skipWaiting();
+// 僅快取你自己的基本檔案
+const ASSETS = [
+  './',
+  './index.html',
+  './site.webmanifest',
+  './icon-192.png',
+  './icon-512.png'
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // 使用 map 逐一嘗試，避免其中一個檔案失敗導致整個 SW 掛掉
+      return Promise.allSettled(ASSETS.map(url => cache.add(url)));
+    })
+  );
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-    // 確保 SW 取得控制權
-    event.waitUntil(clients.claim());
-});
-
-self.addEventListener('fetch', (event) => {
-    // 必須攔截 fetch 請求，Android 才會顯示「安裝」選項
-    event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request);
-        })
-    );
+self.addEventListener('fetch', (e) => {
+  // 核心修復：如果是在線請求，直接讓它通過，失敗才找快取
+  e.respondWith(
+    fetch(e.request).catch(() => {
+      return caches.match(e.request);
+    })
+  );
 });
