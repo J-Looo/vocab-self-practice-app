@@ -1,28 +1,21 @@
-const CACHE_NAME = 'vocab-cache-v1';
-const urlsToCache = [
-  'index.html',
-  'manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/react@18/umd/react.production.min.js',
-  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
-  'https://unpkg.com/@babel/standalone/babel.min.js'
-];
+// sw.js 內容
+const CACHE_NAME = 'vocab-app-v1';
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('vocab-store').then((cache) => cache.addAll([
-      './',
-      './index.html',
-      './manifest.json',
-      './icon-192.png',
-      './icon-512.png'
-    ]))
-  );
+self.addEventListener('install', (event) => {
+    // 安裝時不強制等待，直接進入 active 狀態
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    // 確保 SW 取得控制權
+    event.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
-  // 必須攔截請求，瀏覽器才會認為這是合格的 App
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+    // 必須攔截 fetch 請求，Android 才會顯示「安裝」選項
+    event.respondWith(
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
+        })
+    );
 });
