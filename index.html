@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>極簡單字練習</title>
 
-    <!-- PWA 支援腳本開始 -->
+    <!-- PWA 支援腳本 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffffff">
     <script>
@@ -17,7 +17,6 @@
             });
         }
     </script>
-    <!-- PWA 支援腳本結束 -->
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -165,6 +164,13 @@
                     window.speechSynthesis.cancel();
                     const u = new SpeechSynthesisUtterance(word);
                     u.lang = 'en-US';
+                    
+                    // 修正：搜尋系統中標記為 en-US 的美式英語語音，防止出現非美語口音
+                    const voices = window.speechSynthesis.getVoices();
+                    const usVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US') || 
+                                    voices.find(v => v.lang.startsWith('en'));
+                    if (usVoice) u.voice = usVoice;
+                    
                     window.speechSynthesis.speak(u);
                 }
             };
