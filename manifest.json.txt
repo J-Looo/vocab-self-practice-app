@@ -1,0 +1,16 @@
+{
+  "name": "單字挑戰挑戰站",
+  "short_name": "單字練習",
+  "description": "專業英文單字練習教具",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3426/3426653.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
