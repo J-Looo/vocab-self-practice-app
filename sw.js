@@ -20,8 +20,9 @@ self.addEventListener('install', (e) => {
   );
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request))
+self.addEventListener('fetch', (event) => {
+  // 必須攔截請求，瀏覽器才會認為這是合格的 App
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
