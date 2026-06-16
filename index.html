@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>極簡單字練習</title>
 
-    <!-- 原始 PWA 支援腳本 (無額外除錯與路徑強制) -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#ffffff">
     <script>
@@ -18,12 +17,9 @@
         }
     </script>
 
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -106,7 +102,8 @@
         };
 
         function App() {
-            const defaultText = `apple, 蘋果, fruit, 名詞, 水果店購物, An apple a day keeps the doctor away., 一天一蘋果，醫生遠離我。\nbrave, 勇敢的, fearless/courageous, 形容詞, 描述人物性格, He is a brave firefighter., 他是一位勇敢的消防員。\nabandon, 放棄, give up/quit, 動詞, 面對困難時, Never abandon your dreams., 永遠不要放棄你的夢想。`;
+            // 預設示範單字格式調整：英文單字, 中文翻譯, 詞性, 例句, 例句中文翻譯, 提示
+            const defaultText = `apple, 蘋果, 名詞, An apple a day keeps the doctor away., 一天一蘋果，醫生遠離我。, 水果店購物\nbrave, 勇敢的, 形容詞, He is a brave firefighter., 他是一位勇敢的消防員。, 描述人物性格\nabandon, 放棄, 動詞, Never abandon your dreams., 永遠不要放棄你的夢想。, 面對困難時`;
 
             const [appState, setAppState] = useState('import'); 
             const [vocabList, setVocabList] = useState([]);
@@ -121,7 +118,13 @@
             const [isSaved, setIsSaved] = useState(false);
             const [showResetModal, setShowResetModal] = useState(false);
 
+            const [isFirstTime, setIsFirstTime] = useState(() => {
+                return !localStorage.getItem('vocab_app_raw_text');
+            });
+
             const [importText, setImportText] = useState(() => localStorage.getItem('vocab_app_raw_text') || defaultText);
+            const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('vocab_google_sheet_url') || '');
+            
             const [savedSession, setSavedSession] = useState(() => {
                 const s = localStorage.getItem('vocab_app_session');
                 try { 
@@ -165,7 +168,6 @@
                     const u = new SpeechSynthesisUtterance(word);
                     u.lang = 'en-US';
                     
-                    // 確保使用美式英語發音
                     const voices = window.speechSynthesis.getVoices();
                     const usVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US') || 
                                     voices.find(v => v.lang.startsWith('en'));
@@ -183,20 +185,54 @@
 
             const handleManualSave = () => {
                 localStorage.setItem('vocab_app_raw_text', importText);
+                setIsFirstTime(false);
                 setIsSaved(true);
                 setTimeout(() => setIsSaved(false), 2000);
             };
 
+            const handleFetchGoogleSheet = async () => {
+                if (!sheetUrl.trim()) {
+                    alert('請先輸入 Google 試算表的發布網址！');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(sheetUrl);
+                    if (!response.ok) throw new Error('讀取失敗，請檢查網址是否正確或是否已發布到網路');
+                    
+                    const text = await response.text();
+                    
+                    localStorage.setItem('vocab_google_sheet_url', sheetUrl);
+                    setImportText(text);
+                    setIsSaved(false);
+                    
+                    alert('雲端單字同步成功！已將單字載入至下方輸入框。');
+                } catch (error) {
+                    console.error(error);
+                    alert('同步失敗：' + error.message);
+                }
+            };
+
             const handleImport = () => {
+                if (!localStorage.getItem('vocab_app_raw_text')) {
+                    localStorage.setItem('vocab_app_raw_text', importText);
+                    setIsFirstTime(false);
+                }
+
                 let list = importText.split('\n').filter(l => l.trim()).map(line => {
-                    const p = line.split(',').map(s => s.trim());
-                    const word = p[0] || '';
+                    // 同時支援「逗號」與 Excel 的「Tab鍵」分隔
+                    const p = line.includes('\t') ? line.split('\t') : line.split(',');
+                    const trimmedParams = p.map(s => s.trim());
+                    const word = trimmedParams[0] || '';
+                    
                     return {
-                        word, meaning: p[1] || '',
-                        synonyms: p[2] ? p[2].split('/').map(s => s.trim().toLowerCase()) : [],
-                        pos: p[3] || '未提供', context: p[4] || '未提供',
-                        example: p[5] || `Example for "${word}".`,
-                        exampleTranslation: p[6] || '',
+                        word, 
+                        meaning: trimmedParams[1] || '',
+                        synonyms: [], // 新格式無同義詞
+                        pos: trimmedParams[2] || '未提供', // 詞性移到第 3 欄
+                        example: trimmedParams[3] || `Example for "${word}".`, // 例句移到第 4 欄
+                        exampleTranslation: trimmedParams[4] || '', // 例句中文移到第 5 欄
+                        context: trimmedParams[5] || '未提供', // 提示移到第 6 欄
                         useCloze: isClozeMode ? Math.random() > 0.5 : false 
                     };
                 }).filter(i => i.word && i.meaning);
@@ -307,7 +343,9 @@
                                 </button>
                             )}
                         </div>
-                        <h1 className="text-6xl md:text-[5rem] font-light text-center mb-12">建立題庫</h1>
+                        <h1 className="text-6xl md:text-[5rem] font-light text-center mb-12">
+                            {isFirstTime ? '初次見面!!' : '歡迎回來!!'}
+                        </h1>
                         <div className="flex flex-col md:flex-row gap-6 mb-12 w-full">
                             <div className="flex-1 flex items-center justify-between bg-gray-50 p-8 rounded-3xl border-2">
                                 <span className="text-2xl md:text-3xl font-medium text-gray-600">隨機出題順序</span>
@@ -320,10 +358,28 @@
                         </div>
                         <div className="bg-white p-8 md:p-12 rounded-[3rem] border shadow-sm w-full">
                             <div className="flex justify-between items-end mb-8">
-                                <label className="text-2xl md:text-3xl text-gray-400 font-medium">貼上單字清單</label>
+                                <label className="text-2xl md:text-3xl text-gray-400 font-medium">雲端同步與單字清單</label>
                                 <button onClick={handleManualSave} className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 transition-all text-xl font-bold ${isSaved ? 'bg-green-50 border-green-200 text-green-600' : 'text-gray-400 border-gray-200 hover:border-black hover:text-black'}`}><Icon name={isSaved ? "check" : "save"} size={24} />{isSaved ? '已儲存' : '儲存題庫'}</button>
                             </div>
-                            <textarea className="w-full h-80 p-8 bg-gray-50 border-2 rounded-3xl text-xl md:text-3xl font-mono focus:outline-none focus:ring-4 focus:ring-gray-200 resize-none leading-relaxed" value={importText} onChange={e => { setImportText(e.target.value); setIsSaved(false); }} placeholder="單字, 中義, 同義詞, 詞性, 情境, 例句, 例句翻譯" />
+
+                            {/* Google 試算表同步區塊 */}
+                            <div className="mb-8 p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col md:flex-row gap-4 items-center">
+                                <input 
+                                    type="text" 
+                                    className="flex-1 w-full px-6 py-4 bg-white border-2 rounded-2xl text-xl font-mono focus:outline-none focus:border-blue-500" 
+                                    value={sheetUrl} 
+                                    onChange={e => setSheetUrl(e.target.value)} 
+                                    placeholder="貼上 Google 試算表發布的 .csv 網址..." 
+                                />
+                                <button 
+                                    onClick={handleFetchGoogleSheet} 
+                                    className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-2xl text-xl font-bold hover:bg-blue-700 transition-all active:scale-95 whitespace-nowrap"
+                                >
+                                    雲端同步單字
+                                </button>
+                            </div>
+
+                            <textarea className="w-full h-80 p-8 bg-gray-50 border-2 rounded-3xl text-xl md:text-3xl font-mono focus:outline-none focus:ring-4 focus:ring-gray-200 resize-none leading-relaxed" value={importText} onChange={e => { setImportText(e.target.value); setIsSaved(false); }} placeholder="英文單字, 中文翻譯, 詞性, 例句, 例句中文翻譯, 提示" />
                             <button onClick={handleImport} className="w-full mt-10 bg-gray-900 text-white py-8 rounded-3xl text-3xl md:text-4xl font-bold flex items-center justify-center gap-6 active:scale-95 transition-all"><Icon name="play" size={40} />開始練習</button>
                         </div>
                     </div>
@@ -331,16 +387,22 @@
             }
 
             if (appState === 'testing') {
-                const vocab = vocabList[currentIndex];
-                const wordRegex = new RegExp(vocab.word + '\\w*', 'gi');
-                const meaningRegex = new RegExp(vocab.meaning, 'g');
+            const vocab = vocabList[currentIndex];
+                
+                // 【優化】取單字前 4 個字母（如果單字很短就取 2 或 3 個字）作為關鍵字根來比對
+                // 這樣不管是 gratify 變成 gratified，還是 study 變成 studied，都能精準捕捉！
+                const keywordStub = vocab.word.length > 4 ? vocab.word.substring(0, 4) : vocab.word.substring(0, Math.max(2, vocab.word.length - 1));
+                const wordRegex = new RegExp(`\\b${keywordStub}[a-zA-Z]*\\b`, 'gi');
 
+                // 將例句中匹配到的完整變形單字全部替換為底線
                 const maskedExample = vocab.example.replace(wordRegex, m => {
-                    if (m.length <= 2) return m[0] + '_';
-                    return m[0] + '_'.repeat(m.length - 2) + m[m.length - 1];
+                    // 保留開頭第一個字母，其餘變底線，且底線長度對齊該變形單字的長度
+                    if (m.length <= 2) return m[0] + '_'; 
+                    return m[0] + '_'.repeat(m.length - 1);
                 });
 
-                const maskedTranslation = vocab.exampleTranslation.replace(meaningRegex, '____');
+                // 直接將提示文字設定為：[詞性] 中文意思
+                const hintText = `[${vocab.pos}] ${vocab.meaning}`;
 
                 return (
                     <div className="max-w-6xl mx-auto px-4 pt-24 md:pt-40 relative animate-fade-in pb-32">
@@ -353,7 +415,8 @@
                             {vocab.useCloze ? (
                                 <div className="space-y-6 w-full">
                                     <span className="bg-indigo-100 text-indigo-600 px-6 py-2 rounded-full text-xl font-bold tracking-widest inline-block">語境推敲</span>
-                                    <h2 className="text-3xl md:text-6xl font-medium text-gray-800 leading-tight tracking-wide">{maskedTranslation || "請根據語境填入單字"}</h2>
+                                    {/* 改為直接顯示清晰的詞性與中文意思提示 */}
+                                    <h2 className="text-3xl md:text-6xl font-medium text-gray-800 leading-tight tracking-wide">{hintText}</h2>
                                     <p className="text-2xl md:text-5xl font-serif text-gray-400 italic leading-relaxed">{maskedExample}</p>
                                 </div>
                             ) : (
@@ -399,10 +462,12 @@
                                     <div className="flex gap-4 bg-gray-50 px-10 py-4 rounded-full text-xl md:text-4xl mb-12 font-bold shadow-sm">
                                         <span className="text-blue-500">[{vocab.pos}]</span><span className="text-gray-700">{vocab.meaning}</span>
                                     </div>
+                                    
                                     <div className="w-full bg-gray-50 p-10 md:p-12 rounded-[3rem] border border-gray-100 text-center mb-12 shadow-inner">
                                         <p className="text-2xl md:text-5xl italic font-serif text-gray-600 mb-6 leading-relaxed break-words">"{vocab.example}"</p>
                                         <p className="text-xl md:text-3xl text-gray-400 font-medium leading-relaxed break-words">{vocab.exampleTranslation}</p>
                                     </div>
+                                    
                                     <button onClick={handleNext} className="w-full md:w-auto bg-gray-900 text-white px-24 py-10 rounded-full text-3xl md:text-4xl font-bold flex items-center justify-center gap-6 shadow-2xl active:scale-95 transition-all">繼續下題 <Icon name="arrowRight" size={48} /></button>
                                 </div>
                             )}
